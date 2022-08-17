@@ -339,17 +339,14 @@ GLOBAL_LIST_EMPTY(fax_machines)
 		playsound(src, 'sound/machines/terminal_error.ogg', 50, FALSE)
 		return FALSE
 
-	if(!stored_paper || !length(stored_paper.default_raw_text) || !COOLDOWN_FINISHED(src, fax_cooldown))
+	if(!stored_paper || !COOLDOWN_FINISHED(src, fax_cooldown) || !stored_paper.get_total_length())
 		balloon_alert_to_viewers("fax failed to send")
 		playsound(src, 'sound/machines/terminal_error.ogg', 50, FALSE)
 		return FALSE
 
-	var/message = "INCOMING FAX: FROM \[[station_name()]\], AUTHOR \[[user]\]: "
-	message += remove_all_tags(stored_paper.default_raw_text)
-	message += LAZYLEN(stored_paper.stamp_cache) ? " --- The message is stamped." : ""
 	if(destination in GLOB.admin_fax_destinations)
 		message_admins("[ADMIN_LOOKUPFLW(user)] sent a fax to [destination].")
-		send_fax_to_admins(user, message, ((obj_flags & EMAGGED) ? "crimson" : "orange"), destination)
+		send_fax_to_admins(user, stored_paper, ((obj_flags & EMAGGED) ? "crimson" : "orange"), destination)
 	else
 		var/found_a_machine = FALSE
 		for(var/obj/machinery/fax_machine/machine as anything in GLOB.fax_machines)
@@ -376,20 +373,42 @@ GLOBAL_LIST_EMPTY(fax_machines)
 /*
  * Send the content of admin faxes to admins directly.
  * [sender] - the mob who sent the fax
- * [fax_contents] - the contents of the fax
+ * [faxed_paper] - the paper that has been faxed to the admins. Make sure to create a copy of this.
  * [destination_color] - the color of the span that encompasses [destination_string]
  * [destination_string] - the string that says where this fax was sent (syndiate or centcom)
  */
-/obj/machinery/fax_machine/proc/send_fax_to_admins(mob/sender, fax_contents, destination_color, destination_string)
-	var/message = copytext_char(sanitize(fax_contents), 1, MAX_MESSAGE_LEN)
-	deadchat_broadcast(" has sent a fax to: [destination_string], with the message: \"[message]\" at [span_name("[get_area_name(sender, TRUE)]")].", span_name("[sender.real_name]"), sender, message_type = DEADCHAT_ANNOUNCEMENT)
-	to_chat(GLOB.admins, span_adminnotice("<b><font color=[destination_color]>FAX TO [destination_string]: </font>[ADMIN_FULLMONTY(sender)] [ADMIN_FAX_REPLY(src)]:</b> [message]"), confidential = TRUE)
+/obj/machinery/fax_machine/proc/send_fax_to_admins(mob/sender, /obj/item/paper/faxed_paper, destination_color, destination_string)
+	var/copied_fax = faxed_paper.copy(faxed_paper.type, null)
+	copied_fax.name = faxed_paper.name
+
+	GLOB.faxes_sent_to_admins += copied_fax
+
+	deadchat_broadcast(" has sent a fax to [destination_string]: <a href='?_src_=usr;show_fax_from_chat=[REF(copied_fax)];index=[length(GLOB.faxes_sent_to_admins)]'>\a [copied_fax]</a> at [span_name("[get_area_name(sender, TRUE)]")].", span_name("[sender.real_name]"), sender, message_type = DEADCHAT_ANNOUNCEMENT)
+	to_chat(GLOB.admins, span_adminnotice("<b><font color=[destination_color]>FAX TO [destination_string]: </font>[ADMIN_FULLMONTY(sender)] [ADMIN_FAX_REPLY(src)]:</b> <a href='?_src_=usr;show_fax_from_chat=[REF(some_paper)];index=[length(GLOB.faxes_sent_to_admins)]'>\a [copied_fax]</a>"), confidential = TRUE)
+
+/mob/dead/observer/Topic(href, href_list)
+	. = ..()
+	if(href_list["show_fax_from_chat"])
+		var/obj/item/paper/faxed_paper = locate(href_list["show_fax_from_chat"] in GLOB.faxes_sent_to_admins)
+
+		if(!faxed_paper)
+			return
+
+		faxed_paper.show_from_chat(src)
 
 /datum/admins/Topic(href, href_list)
 	. = ..()
 	if(href_list["FaxReply"])
 		var/obj/machinery/fax_machine/source = locate(href_list["FaxReply"]) in GLOB.fax_machines
 		source.admin_create_fax(usr)
+
+	if(href_list["show_fax_from_chat"])
+		var/obj/item/paper/faxed_paper = locate(href_list["show_fax_from_chat"] in GLOB.faxes_sent_to_admins)
+
+		if(!faxed_paper)
+			return
+
+		faxed_paper.show_from_chat(src)
 
 /obj/machinery/fax_machine/vv_get_dropdown()
 	. = ..()
