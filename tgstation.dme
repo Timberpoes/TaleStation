@@ -4689,6 +4689,7 @@
 #include "talestation_modules\code\__DEFINES\paperwork_defines.dm"
 #include "talestation_modules\code\__DEFINES\spans.dm"
 #include "talestation_modules\code\__HELPERS\text_helpers.dm"
+#include "talestation_modules\code\_globalvars\lists\fax.dm"
 #include "talestation_modules\code\_globalvars\lists\names.dm"
 #include "talestation_modules\code\controllers\configuration\entries\autotransfer.dm"
 #include "talestation_modules\code\controllers\subsystem\autotransfer.dm"
