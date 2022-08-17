@@ -377,19 +377,20 @@ GLOBAL_LIST_EMPTY(fax_machines)
  * [destination_color] - the color of the span that encompasses [destination_string]
  * [destination_string] - the string that says where this fax was sent (syndiate or centcom)
  */
-/obj/machinery/fax_machine/proc/send_fax_to_admins(mob/sender, /obj/item/paper/faxed_paper, destination_color, destination_string)
-	var/copied_fax = faxed_paper.copy(faxed_paper.type, null)
+/obj/machinery/fax_machine/proc/send_fax_to_admins(mob/sender, obj/item/paper/faxed_paper, destination_color, destination_string)
+	var/obj/item/paper/copied_fax = faxed_paper.copy(faxed_paper.type, null)
 	copied_fax.name = faxed_paper.name
 
 	GLOB.faxes_sent_to_admins += copied_fax
 
-	deadchat_broadcast(" has sent a fax to [destination_string]: <a href='?_src_=usr;show_fax_from_chat=[REF(copied_fax)];index=[length(GLOB.faxes_sent_to_admins)]'>\a [copied_fax]</a> at [span_name("[get_area_name(sender, TRUE)]")].", span_name("[sender.real_name]"), sender, message_type = DEADCHAT_ANNOUNCEMENT)
-	to_chat(GLOB.admins, span_adminnotice("<b><font color=[destination_color]>FAX TO [destination_string]: </font>[ADMIN_FULLMONTY(sender)] [ADMIN_FAX_REPLY(src)]:</b> <a href='?_src_=usr;show_fax_from_chat=[REF(some_paper)];index=[length(GLOB.faxes_sent_to_admins)]'>\a [copied_fax]</a>"), confidential = TRUE)
+	deadchat_broadcast(" has sent a fax to [destination_string]: <a href='?_src_=usr;show_fax_from_chat=[length(GLOB.faxes_sent_to_admins - 1)];'>\a [copied_fax]</a> at [span_name("[get_area_name(sender, TRUE)]")].", span_name("[sender.real_name]"), sender, message_type = DEADCHAT_ANNOUNCEMENT)
+	to_chat(GLOB.admins, span_adminnotice("<b><font color=[destination_color]>FAX TO [destination_string]: </font>[ADMIN_FULLMONTY(sender)] [ADMIN_FAX_REPLY(src)]:</b> <a href='?_src_=holder;show_fax_from_chat=[length(GLOB.faxes_sent_to_admins - 1)]'>\a [copied_fax]</a>"), confidential = TRUE)
 
 /mob/dead/observer/Topic(href, href_list)
 	. = ..()
 	if(href_list["show_fax_from_chat"])
-		var/obj/item/paper/faxed_paper = locate(href_list["show_fax_from_chat"] in GLOB.faxes_sent_to_admins)
+		var/fax_index = text2num(href_list["show_fax_from_chat"])
+		var/obj/item/paper/faxed_paper = GLOB.faxes_sent_to_admins[fax_index]
 
 		if(!faxed_paper)
 			return
@@ -403,7 +404,8 @@ GLOBAL_LIST_EMPTY(fax_machines)
 		source.admin_create_fax(usr)
 
 	if(href_list["show_fax_from_chat"])
-		var/obj/item/paper/faxed_paper = locate(href_list["show_fax_from_chat"] in GLOB.faxes_sent_to_admins)
+		var/fax_index = text2num(href_list["show_fax_from_chat"])
+		var/obj/item/paper/faxed_paper = GLOB.faxes_sent_to_admins[fax_index]
 
 		if(!faxed_paper)
 			return
