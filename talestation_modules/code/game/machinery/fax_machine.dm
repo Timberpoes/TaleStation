@@ -137,7 +137,7 @@ GLOBAL_LIST_EMPTY(fax_machines)
 	for(var/obj/item/paper/processed/paper as anything in received_paperwork)
 		var/list/found_paper_data = list()
 		found_paper_data["title"] = paper.name
-		found_paper_data["contents"] = TextPreview(remove_all_tags(paper.default_raw_text), MAX_DISPLAYED_PAPER_CHARS)
+		found_paper_data["contents"] = TextPreview(safely_extract_raw_text_from_paper(paper), MAX_DISPLAYED_PAPER_CHARS)
 		found_paper_data["required_answer"] = paper.required_question
 		found_paper_data["ref"] = REF(paper)
 		found_paper_data["num"] = iterator++
@@ -148,14 +148,14 @@ GLOBAL_LIST_EMPTY(fax_machines)
 	if(stored_paper)
 		var/list/stored_paper_data = list()
 		stored_paper_data["title"] = stored_paper.name
-		stored_paper_data["contents"] = TextPreview(remove_all_tags(stored_paper.default_raw_text), MAX_DISPLAYED_PAPER_CHARS)
+		stored_paper_data["contents"] = TextPreview(safely_extract_raw_text_from_paper(stored_paper), MAX_DISPLAYED_PAPER_CHARS)
 		stored_paper_data["ref"] = REF(stored_paper_data)
 		data["stored_paper"] = stored_paper_data
 
 	if(received_paper)
 		var/list/received_paper_data = list()
 		received_paper_data["title"] = received_paper.name
-		received_paper_data["contents"] = TextPreview(remove_all_tags(received_paper.default_raw_text), MAX_DISPLAYED_PAPER_CHARS)
+		received_paper_data["contents"] = TextPreview(safely_extract_raw_text_from_paper(received_paper), MAX_DISPLAYED_PAPER_CHARS)
 		received_paper_data["source"] = received_paper.was_faxed_from
 		received_paper_data["ref"] = REF(received_paper)
 		data["received_paper"] = received_paper_data
@@ -202,7 +202,7 @@ GLOBAL_LIST_EMPTY(fax_machines)
 
 	switch(action)
 		if("un_emag_machine")
-			to_chat(usr, span_notice("You restore [src]'s routing default_raw_textrmation to [CENTCOM_FAX_MACHINE]."))
+			to_chat(usr, span_notice("You restore [src]'s routing information to [CENTCOM_FAX_MACHINE]."))
 			obj_flags &= ~EMAGGED
 
 		if("toggle_recieving")
@@ -410,7 +410,7 @@ GLOBAL_LIST_EMPTY(fax_machines)
 		if(!faxed_paper)
 			return
 
-		faxed_paper.show_from_chat(src)
+		faxed_paper.show_from_chat(owner.mob)
 
 /obj/machinery/fax_machine/vv_get_dropdown()
 	. = ..()
@@ -448,7 +448,6 @@ GLOBAL_LIST_EMPTY(fax_machines)
 	var/obj/item/paper/sent_paper = new()
 	var/fax = stripped_multiline_input(user, "Write your fax to send here.", "Send Fax", max_length = MAX_MESSAGE_LEN)
 	if(length(fax))
-		sent_paper.default_raw_text = fax
 		sent_paper.add_raw_text(fax)
 	else
 		to_chat(user, span_warning("No contents inputted."))
@@ -681,6 +680,15 @@ GLOBAL_LIST_EMPTY(fax_machines)
 		received_paper.forceMove(drop_location())
 	received_paper = null
 	SStgui.update_uis(src)
+
+/obj/machinery/fax_machine/proc/safely_extract_raw_text_from_paper(obj/item/paper/paper_to_copy)
+	var/raw_content = ""
+
+	for(var/datum/paper_input/text_input as anything in paper_to_copy.raw_text_inputs)
+		raw_content += text_input.raw_text
+
+	// Content from paper is never trusted. It it raw, unsanitised, unparsed user input. Do some work to make it safe if we return it.
+	return trim(html_encode(remove_all_tags(raw_content)), MAX_PAPER_LENGTH)
 
 /// Sends messages to the syndicate when emagged.
 /obj/machinery/fax_machine/emag_act(mob/user)

@@ -15,3 +15,16 @@
 		return FALSE
 
 	return (isobserver(user) || is_admin(user.client))
+
+/obj/item/paper/ui_state(mob/user)
+	// If this isn't one of the special copies that has been sent to admins, we don't do anything special.
+	if(!(src in GLOB.faxes_sent_to_admins))
+		return ..()
+
+	// But if it is, we want to let observers and admins have the ability to read it, as it'll be linked to
+	// them in chat.
+	if(is_admin(user.client))
+		return GLOB.admin_state
+
+	if(isobserver(user))
+		return GLOB.observer_state
